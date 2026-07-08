@@ -90,7 +90,7 @@ results = mem.recall("billing query", top_k=5)
 
 ---
 
-### 🛠️ Agentool — API Schema Inference & Execution
+### Agentool — API Schema Inference & Execution
 A Rust parser that reads OpenAPI specifications and raw HTML pages to automatically infer tool schemas. Includes a Tokio-based Model Context Protocol (MCP) server. The Rust core compiles to a native Python extension via PyO3.
 *   Automatic schema inference from OpenAPI JSON/YAML and HTML documentation
 *   Tokio-based async MCP server for tool discovery and invocation
