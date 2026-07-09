@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+sse-starlette
+git+https://github.com/samvardhan03/AgentID.git
+git+https://github.com/Muskangujar/AgentMem.git
+git+https://github.com/Muskangujar/Agentool.git
