@@ -19,3 +19,6 @@ include = ["agentphased*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.vercel]
+entrypoint = "agentphased.server:app"
