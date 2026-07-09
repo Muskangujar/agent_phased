@@ -100,6 +100,93 @@ const stackModules = [
   },
 ]
 
+const archNodesData = {
+  runtime: {
+    title: 'AgentPhased Runtime',
+    tag: 'Orchestration Layer',
+    color: '#746B61',
+    desc: 'The glue that binds identity, memory, and tool execution into a single coherent Agent instance. Uses a decoupled, event-driven architecture to keep components isolated yet collaborative.',
+    repo: 'https://github.com/samvardhan03/agent_phased',
+    features: [
+      'Event-driven communication via pub/sub EventBus',
+      'Zero-dependency runtime composition',
+      'Thread-safe callbacks and async telemetry streams'
+    ]
+  },
+  id: {
+    title: 'AgentID',
+    tag: 'Cryptographic Identity',
+    color: '#2D8C8C',
+    desc: 'Deterministic Ed25519 keypairs derived from the agent\'s name and project namespace. Every outbound request is signed cryptographically for cross-system verification and auditable telemetry.',
+    repo: 'https://github.com/samvardhan03/AgentID',
+    features: [
+      'Zero-certificate setup for trust verification',
+      'Reproducible fingerprint derivation (SHA-256)',
+      'Native request/payload signing out-of-the-box'
+    ]
+  },
+  mem: {
+    title: 'AgentMem',
+    tag: 'Persistent Memory',
+    color: '#8B6CC1',
+    desc: 'A high-performance local memory engine built in Rust. Logs structured episodic timelines (actions, tools, results) and performs semantic searches using a local ONNX embedding engine and HNSW vector indexing.',
+    repo: 'https://github.com/Muskangujar/AgentMem',
+    features: [
+      'RocksDB-backed local storage (no cloud DB required)',
+      'Local HNSW approximate nearest-neighbor search',
+      'Completely self-contained; zero external API requests'
+    ]
+  },
+  tool: {
+    title: 'Agentool',
+    tag: 'Tool Execution & Discovery',
+    color: '#D6AD60',
+    desc: 'An automated tool execution engine that reads OpenAPI/Swagger specifications and parses HTML docs to dynamically infer and build structured execution schemas for model invocation.',
+    repo: 'https://github.com/Muskangujar/Agentool',
+    features: [
+      'Dynamic OpenAPI and HTML schema parsers',
+      'Built-in Model Context Protocol (MCP) server',
+      'Rust core compiled to native Python modules via PyO3'
+    ]
+  },
+  class: {
+    title: 'Agent Class',
+    tag: 'Developer Interface',
+    color: '#191714',
+    desc: 'The main developer API surface. Instantiating Agent initializes all three engines under a single Python object, auto-registering listeners to bridge memory, key signatures, and tool execution.',
+    repo: 'https://github.com/samvardhan03/agent_phased',
+    features: [
+      'Clean developer interface (unified imports)',
+      'Pre-wired episodic memory listeners',
+      'Centralized configuration and initialization'
+    ]
+  },
+  registry: {
+    title: 'ToolRegistry',
+    tag: 'Execution Routing',
+    color: '#2D8C8C',
+    desc: 'Registers, validates, and manages execution schemas. It ensures that inputs match target schemas and uses the agent\'s cryptographic keypair to sign outbound API requests.',
+    repo: 'https://github.com/samvardhan03/agent_phased',
+    features: [
+      'Input/output parameter validation',
+      'Payload cryptographic signing hook',
+      'Local schema registry caching'
+    ]
+  },
+  bus: {
+    title: 'EventBus',
+    tag: 'Pub/Sub Broker',
+    color: '#C96442',
+    desc: 'A thread-safe, synchronous and asynchronous event broker. Decouples components by broadcasting events like tool.called and system to real-time streams like the SSE dashboard.',
+    repo: 'https://github.com/samvardhan03/agent_phased',
+    features: [
+      'Wildcard event subscription capabilities',
+      'Thread-safe pub/sub dispatching',
+      'Direct connection to SSE dashboard event generator'
+    ]
+  }
+}
+
 function App() {
   // Hero Carousel State
   const [activeSlide, setActiveSlide] = useState(0)
@@ -107,6 +194,10 @@ function App() {
   const [progressKey, setProgressKey] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Mobile Swipe handling for Hero
+  const touchStartX = useRef<number | null>(null)
+  const touchEndX = useRef<number | null>(null)
 
   // Stack Carousel State
   const [activeModule, setActiveModule] = useState(0)
@@ -118,17 +209,44 @@ function App() {
   // DX Tabs State
   const [activeTab, setActiveTab] = useState<'python' | 'typescript' | 'api'>('python')
 
+  // Interactive Architecture State
+  const [activeNode, setActiveNode] = useState<'id' | 'mem' | 'tool' | 'class' | 'registry' | 'bus' | 'runtime'>('runtime')
+
   const goToSlide = useCallback((nextIndex: number) => {
+    if (nextIndex === activeSlide) return
     setLeavingSlide(activeSlide)
+    setActiveSlide(nextIndex)
+    setProgressKey(prev => prev + 1)
+
     if (timerRef.current) clearTimeout(timerRef.current)
     if (exitTimerRef.current) clearTimeout(exitTimerRef.current)
 
     exitTimerRef.current = setTimeout(() => {
       setLeavingSlide(null)
-      setActiveSlide(nextIndex)
-      setProgressKey(prev => prev + 1)
     }, EXIT_DURATION)
   }, [activeSlide])
+
+  // Swipe events
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX
+  }
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return
+    const diff = touchStartX.current - touchEndX.current
+    const swipeThreshold = 50
+    if (diff > swipeThreshold) {
+      goToSlide((activeSlide + 1) % heroSlides.length)
+    } else if (diff < -swipeThreshold) {
+      goToSlide((activeSlide - 1 + heroSlides.length) % heroSlides.length)
+    }
+    touchStartX.current = null
+    touchEndX.current = null
+  }
 
   // Hero auto-advance timer
   useEffect(() => {
@@ -148,14 +266,16 @@ function App() {
   }
 
   const goToModule = useCallback((nextIndex: number) => {
+    if (nextIndex === activeModule) return
     setLeavingModule(activeModule)
+    setActiveModule(nextIndex)
+    setStackProgressKey(prev => prev + 1)
+
     if (stackTimerRef.current) clearTimeout(stackTimerRef.current)
     if (stackExitTimerRef.current) clearTimeout(stackExitTimerRef.current)
 
     stackExitTimerRef.current = setTimeout(() => {
       setLeavingModule(null)
-      setActiveModule(nextIndex)
-      setStackProgressKey(prev => prev + 1)
     }, EXIT_DURATION)
   }, [activeModule])
 
@@ -202,7 +322,12 @@ function App() {
       </div>
 
       {/* ===== HERO CAROUSEL WITH VIDEO BACKDROP ===== */}
-      <section className="hero-carousel">
+      <section
+        className="hero-carousel"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <video
           className="hero-video-bg"
           src="/hero-bg.mp4"
@@ -312,45 +437,160 @@ function App() {
           </p>
         </div>
         <div ref={r6} className="reveal-scale reveal-delay-2">
-          <div className="arch-diagram-wrap">
-            <svg width="100%" viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" style={{ maxWidth: 760 }}>
-              <rect x="50" y="30" width="200" height="70" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
-              <rect x="50" y="30" width="200" height="3" rx="1.5" fill="#2D8C8C" />
-              <text x="150" y="58" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="14" fill="#191714" fontWeight="700">AgentID</text>
-              <text x="150" y="80" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Ed25519 Identity</text>
-              <rect x="300" y="30" width="200" height="70" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
-              <rect x="300" y="30" width="200" height="3" rx="1.5" fill="#8B6CC1" />
-              <text x="400" y="58" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="14" fill="#191714" fontWeight="700">AgentMem</text>
-              <text x="400" y="80" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Episodic + Semantic Memory</text>
-              <rect x="550" y="30" width="200" height="70" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
-              <rect x="550" y="30" width="200" height="3" rx="1.5" fill="#D6AD60" />
-              <text x="650" y="58" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="14" fill="#191714" fontWeight="700">Agentool</text>
-              <text x="650" y="80" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Schema Inference + MCP</text>
-              <line x1="150" y1="100" x2="150" y2="135" stroke="#DED4C8" strokeWidth="1" />
-              <line x1="150" y1="135" x2="300" y2="175" stroke="#DED4C8" strokeWidth="1" />
-              <line x1="400" y1="100" x2="400" y2="175" stroke="#DED4C8" strokeWidth="1" />
-              <line x1="650" y1="100" x2="650" y2="135" stroke="#DED4C8" strokeWidth="1" />
-              <line x1="650" y1="135" x2="500" y2="175" stroke="#DED4C8" strokeWidth="1" />
-              <circle cx="300" cy="175" r="3" fill="#EFE7DA" />
-              <circle cx="400" cy="175" r="3" fill="#EFE7DA" />
-              <circle cx="500" cy="175" r="3" fill="#EFE7DA" />
-              <rect x="165" y="160" width="470" height="82" rx="10" fill="none" stroke="#DED4C8" strokeWidth="1" strokeDasharray="6 4" />
-              <text x="400" y="254" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="10" fill="#746B61" fontWeight="500" letterSpacing="0.08em">AGENTPHASED RUNTIME</text>
-              <rect x="180" y="175" width="250" height="55" rx="8" fill="#FFFCF5" stroke="#191714" strokeWidth="1.5" />
-              <text x="305" y="202" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="13" fill="#191714" fontWeight="700">Agent Class</text>
-              <rect x="460" y="175" width="160" height="55" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
-              <text x="540" y="202" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="12" fill="#746B61" fontWeight="500">ToolRegistry</text>
-              <line x1="460" y1="202" x2="430" y2="202" stroke="#DED4C8" strokeWidth="1" />
-              <line x1="400" y1="264" x2="400" y2="300" stroke="#DED4C8" strokeWidth="1" strokeDasharray="5 4" />
-              <rect x="270" y="300" width="260" height="46" rx="8" fill="#EFE7DA" stroke="#DED4C8" strokeWidth="1" />
-              <text x="400" y="323" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="12" fill="#746B61" fontWeight="500">EventBus (pub/sub, append-only)</text>
-              <line x1="330" y1="346" x2="260" y2="380" stroke="#DED4C8" strokeWidth="1" />
-              <line x1="400" y1="346" x2="400" y2="380" stroke="#DED4C8" strokeWidth="1" />
-              <line x1="470" y1="346" x2="540" y2="380" stroke="#DED4C8" strokeWidth="1" />
-              <text x="260" y="398" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">SSE Stream</text>
-              <text x="400" y="398" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Dashboard</text>
-              <text x="540" y="398" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">CLI / SDK</text>
-            </svg>
+          <div className="arch-grid">
+            <div className="arch-diagram-wrap">
+              <svg 
+                width="100%" 
+                viewBox="0 0 800 420" 
+                xmlns="http://www.w3.org/2000/svg" 
+                style={{ maxWidth: 760 }}
+                onMouseLeave={() => setActiveNode('runtime')}
+              >
+                {/* Connection lines base and flows */}
+                <g className="arch-lines">
+                  <line className="arch-base-line" x1="150" y1="100" x2="150" y2="135" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--id ${activeNode === 'id' ? 'arch-flow-line--active' : ''}`} x1="150" y1="100" x2="150" y2="135" stroke="#2D8C8C" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="150" y1="135" x2="300" y2="175" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--id ${activeNode === 'id' ? 'arch-flow-line--active' : ''}`} x1="150" y1="135" x2="300" y2="175" stroke="#2D8C8C" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="400" y1="100" x2="400" y2="175" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--mem ${activeNode === 'mem' ? 'arch-flow-line--active' : ''}`} x1="400" y1="100" x2="400" y2="175" stroke="#8B6CC1" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="650" y1="100" x2="650" y2="135" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--tool ${activeNode === 'tool' ? 'arch-flow-line--active' : ''}`} x1="650" y1="100" x2="650" y2="135" stroke="#D6AD60" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="650" y1="135" x2="500" y2="175" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--tool ${activeNode === 'tool' ? 'arch-flow-line--active' : ''}`} x1="650" y1="135" x2="500" y2="175" stroke="#D6AD60" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="400" y1="264" x2="400" y2="300" stroke="#DED4C8" strokeWidth="1" strokeDasharray="5 4" />
+                  <line className={`arch-flow-line arch-flow-line--runtime ${activeNode === 'class' || activeNode === 'bus' ? 'arch-flow-line--active' : ''}`} x1="400" y1="264" x2="400" y2="300" stroke="#191714" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="330" y1="346" x2="260" y2="380" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--stream ${activeNode === 'bus' ? 'arch-flow-line--active' : ''}`} x1="330" y1="346" x2="260" y2="380" stroke="#746B61" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="400" y1="346" x2="400" y2="380" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--stream ${activeNode === 'bus' ? 'arch-flow-line--active' : ''}`} x1="400" y1="346" x2="400" y2="380" stroke="#746B61" strokeWidth="1.5" />
+
+                  <line className="arch-base-line" x1="470" y1="346" x2="540" y2="380" stroke="#DED4C8" strokeWidth="1" />
+                  <line className={`arch-flow-line arch-flow-line--stream ${activeNode === 'bus' ? 'arch-flow-line--active' : ''}`} x1="470" y1="346" x2="540" y2="380" stroke="#746B61" strokeWidth="1.5" />
+                </g>
+
+                {/* Component Nodes */}
+                <g 
+                  className={`arch-node arch-node--id ${activeNode === 'id' ? 'arch-node--active' : ''}`}
+                  onMouseEnter={() => setActiveNode('id')}
+                  onClick={() => window.open(archNodesData.id.repo, '_blank')}
+                  title="Click to view AgentID Repository"
+                >
+                  <rect x="50" y="30" width="200" height="70" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
+                  <rect x="50" y="30" width="200" height="3" rx="1.5" fill="#2D8C8C" />
+                  <text x="150" y="58" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="14" fill="#191714" fontWeight="700">AgentID</text>
+                  <text x="150" y="80" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Ed25519 Identity</text>
+                </g>
+
+                <g 
+                  className={`arch-node arch-node--mem ${activeNode === 'mem' ? 'arch-node--active' : ''}`}
+                  onMouseEnter={() => setActiveNode('mem')}
+                  onClick={() => window.open(archNodesData.mem.repo, '_blank')}
+                  title="Click to view AgentMem Repository"
+                >
+                  <rect x="300" y="30" width="200" height="70" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
+                  <rect x="300" y="30" width="200" height="3" rx="1.5" fill="#8B6CC1" />
+                  <text x="400" y="58" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="14" fill="#191714" fontWeight="700">AgentMem</text>
+                  <text x="400" y="80" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Episodic + Semantic Memory</text>
+                </g>
+
+                <g 
+                  className={`arch-node arch-node--tool ${activeNode === 'tool' ? 'arch-node--active' : ''}`}
+                  onMouseEnter={() => setActiveNode('tool')}
+                  onClick={() => window.open(archNodesData.tool.repo, '_blank')}
+                  title="Click to view Agentool Repository"
+                >
+                  <rect x="550" y="30" width="200" height="70" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
+                  <rect x="550" y="30" width="200" height="3" rx="1.5" fill="#D6AD60" />
+                  <text x="650" y="58" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="14" fill="#191714" fontWeight="700">Agentool</text>
+                  <text x="650" y="80" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Schema Inference + MCP</text>
+                </g>
+
+                <circle cx="300" cy="175" r="3" fill="#EFE7DA" />
+                <circle cx="400" cy="175" r="3" fill="#EFE7DA" />
+                <circle cx="500" cy="175" r="3" fill="#EFE7DA" />
+                
+                <rect x="165" y="160" width="470" height="82" rx="10" fill="none" stroke="#DED4C8" strokeWidth="1" strokeDasharray="6 4" />
+                <text x="400" y="254" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="10" fill="#746B61" fontWeight="500" letterSpacing="0.08em">AGENTPHASED RUNTIME</text>
+                
+                <g 
+                  className={`arch-node arch-node--class ${activeNode === 'class' ? 'arch-node--active' : ''}`}
+                  onMouseEnter={() => setActiveNode('class')}
+                  onClick={() => window.open(archNodesData.class.repo, '_blank')}
+                  title="Click to view Runtime Repository"
+                >
+                  <rect x="180" y="175" width="250" height="55" rx="8" fill="#FFFCF5" stroke="#191714" strokeWidth="1.5" />
+                  <text x="305" y="202" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="13" fill="#191714" fontWeight="700">Agent Class</text>
+                </g>
+
+                <g 
+                  className={`arch-node arch-node--registry ${activeNode === 'registry' ? 'arch-node--active' : ''}`}
+                  onMouseEnter={() => setActiveNode('registry')}
+                  onClick={() => window.open(archNodesData.registry.repo, '_blank')}
+                  title="Click to view Runtime Repository"
+                >
+                  <rect x="460" y="175" width="160" height="55" rx="8" fill="#FFFCF5" stroke="#DED4C8" strokeWidth="1" />
+                  <text x="540" y="202" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="12" fill="#746B61" fontWeight="500">ToolRegistry</text>
+                </g>
+                
+                <line x1="460" y1="202" x2="430" y2="202" stroke="#DED4C8" strokeWidth="1" />
+
+                <g 
+                  className={`arch-node arch-node--bus ${activeNode === 'bus' ? 'arch-node--active' : ''}`}
+                  onMouseEnter={() => setActiveNode('bus')}
+                  onClick={() => window.open(archNodesData.bus.repo, '_blank')}
+                  title="Click to view Runtime Repository"
+                >
+                  <rect x="270" y="300" width="260" height="46" rx="8" fill="#EFE7DA" stroke="#DED4C8" strokeWidth="1" />
+                  <text x="400" y="323" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="12" fill="#746B61" fontWeight="500">EventBus (pub/sub, append-only)</text>
+                </g>
+                
+                <text x="260" y="398" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">SSE Stream</text>
+                <text x="400" y="398" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">Dashboard</text>
+                <text x="540" y="398" textAnchor="middle" dominantBaseline="middle" fontFamily="Inter, sans-serif" fontSize="11" fill="#746B61">CLI / SDK</text>
+              </svg>
+            </div>
+
+            <div className="arch-detail-card" style={{ borderTop: `4px solid ${archNodesData[activeNode].color || '#746B61'}` }}>
+              <div className="arch-detail-header">
+                <span className="arch-detail-tag">
+                  {archNodesData[activeNode].tag}
+                </span>
+                <h3 className="arch-detail-title">{archNodesData[activeNode].title}</h3>
+                <p className="arch-detail-desc">{archNodesData[activeNode].desc}</p>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <h4 className="arch-detail-features-title">Core Capability</h4>
+                <ul className="arch-detail-features">
+                  {archNodesData[activeNode].features.map((feat, index) => (
+                    <li key={index} className="arch-detail-feature-item">{feat}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="arch-detail-footer">
+                <a 
+                  className="arch-detail-btn" 
+                  href={archNodesData[activeNode].repo} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  Explore Codebase
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="7" y1="17" x2="17" y2="7" />
+                    <polyline points="7 7 17 7 17 17" />
+                  </svg>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
         <div ref={r7} className="reveal reveal-delay-3">

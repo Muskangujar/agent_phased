@@ -11,7 +11,8 @@ license = {text = "Apache-2.0"}
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.30.0",
-    "sse-starlette>=2.1.0"
+    "sse-starlette>=2.1.0",
+    "agentidentity-auth"
 ]
 
 [project.optional-dependencies]
